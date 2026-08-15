@@ -72,7 +72,7 @@ def parse_pdf_with_ai(file_bytes, api_key):
 
         # Configuring Gemini AI
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         # AI Prompt
         prompt = f"""
