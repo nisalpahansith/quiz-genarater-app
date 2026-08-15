@@ -72,7 +72,7 @@ def parse_pdf_with_ai(file_bytes, api_key):
 
         # Configuring Gemini AI
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-pro')
         
         # AI Prompt
         prompt = f"""
@@ -156,9 +156,4 @@ if api_key:
 else:
     st.warning("Please enter your Gemini API Key in the box above to use the app.")
 
-# --- PYDROID PLAY BUTTON FIX ---
-if __name__ == '__main__':
-    if not sys.argv[0].endswith("streamlit"):
-        sys.argv = ["streamlit", "run", sys.argv[0]]
-        sys.exit(stcli.main())
-        
+
