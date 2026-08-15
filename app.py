@@ -71,7 +71,7 @@ def parse_pdf_with_ai(file_bytes, api_key):
         # Configuring Gemini AI
         genai.configure(api_key=api_key)
         # Using the recommended fast model
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-1.5-pro')
         
         # AI Prompt
         prompt = f"""
