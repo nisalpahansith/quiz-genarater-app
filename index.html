@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDF Quiz Generator — ictfromabc</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;600;700;800&family=Noto+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root{
+    --yellow:#FFC400;
+    --yellow-dim:#8a6d00;
+    --black:#0a0a0a;
+    --panel:#141414;
+    --panel-2:#1c1c1c;
+    --line:#2a2a2a;
+    --red:#ff4d4d;
+    --green:#3ddc84;
+    --text:#f2f2f2;
+    --muted:#9a9a9a;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 50% -10%, rgba(255,196,0,0.10), transparent 60%),
+      repeating-linear-gradient(135deg, rgba(255,196,0,0.025) 0 2px, transparent 2px 22px),
+      var(--black);
+    color:var(--text);
+    font-family: "Noto Sans Sinhala", "Noto Sans", "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif;
+    min-height:100vh;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding:28px 16px 60px;
+  }
+  .app{ width:100%; max-width:680px; }
+  .brand{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:18px; }
+  .brand h1{ font-size:15px; letter-spacing:0.14em; text-transform:uppercase; color:var(--yellow); margin:0; font-weight:800; }
+  .brand span{ font-size:11px; color:var(--muted); letter-spacing:0.05em; }
+
+  .progress-track{ height:6px; width:100%; background:var(--panel-2); border-radius:999px; overflow:hidden; margin-bottom:26px; border:1px solid var(--line); }
+  .progress-fill{ height:100%; background:linear-gradient(90deg, var(--yellow-dim), var(--yellow)); width:0%; transition:width .4s ease; }
+
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:26px 22px; position:relative; overflow:hidden; }
+  .card::before{ content:""; position:absolute; top:0;left:0;right:0; height:4px; background:repeating-linear-gradient(90deg, var(--yellow) 0 18px, var(--black) 18px 30px); opacity:0.9; }
+
+  /* Upload screen */
+  .upload-zone{
+    border:2px dashed var(--line);
+    border-radius:12px;
+    padding:36px 20px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .upload-zone:hover, .upload-zone.drag{ border-color:var(--yellow); background:#1a1607; }
+  .upload-zone input{ display:none; }
+  .upload-icon{ font-size:36px; margin-bottom:10px; }
+  .upload-title{ font-weight:800; font-size:16px; color:#fff; margin-bottom:6px; }
+  .upload-sub{ font-size:13px; color:var(--muted); line-height:1.5; }
+  .filename-chip{
+    margin-top:16px;
+    display:none;
+    align-items:center;
+    gap:8px;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:10px 14px;
+    font-size:13px;
+  }
+  .filename-chip.show{ display:flex; }
+  .note-box{
+    margin-top:18px;
+    background:#1a1607;
+    border:1px solid var(--yellow-dim);
+    border-radius:10px;
+    padding:12px 14px;
+    font-size:12.5px;
+    color:#e8d9a0;
+    line-height:1.55;
+  }
+  .primary-btn{
+    margin-top:18px;
+    width:100%;
+    padding:14px;
+    border-radius:10px;
+    border:none;
+    background:var(--yellow);
+    color:#111;
+    font-weight:800;
+    font-size:14.5px;
+    letter-spacing:0.03em;
+    cursor:pointer;
+    text-transform:uppercase;
+  }
+  .primary-btn:disabled{ opacity:0.4; cursor:not-allowed; }
+  .primary-btn:active:not(:disabled){ transform:scale(0.99); }
+
+  .status-line{ display:flex; align-items:center; gap:10px; font-size:13.5px; color:var(--muted); margin-top:14px; }
+  .spinner{
+    width:16px;height:16px;border-radius:50%;
+    border:2px solid var(--line); border-top-color:var(--yellow);
+    animation:spin 0.8s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg);} }
+
+  /* Review screen */
+  .review-head{ margin-bottom:16px; }
+  .review-head h2{ font-size:16px; margin:0 0 6px; color:#fff; }
+  .review-head p{ font-size:12.5px; color:var(--muted); margin:0; line-height:1.5; }
+  .rev-item{
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:14px;
+    margin-bottom:12px;
+  }
+  .rev-item-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .rev-item-head span{ font-weight:800; font-size:12px; color:var(--yellow); text-transform:uppercase; letter-spacing:0.05em; }
+  .del-btn{ background:none; border:1px solid var(--red); color:var(--red); border-radius:6px; font-size:11px; padding:4px 8px; cursor:pointer; }
+  .rev-field{
+    width:100%;
+    background:#000;
+    border:1px solid var(--line);
+    border-radius:6px;
+    color:var(--text);
+    font-family:inherit;
+    font-size:13px;
+    padding:8px 10px;
+    margin-bottom:6px;
+    resize:vertical;
+  }
+  .rev-opt-row{ display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .rev-opt-row input[type="radio"]{ accent-color: var(--yellow); flex:0 0 auto; }
+  .rev-opt-row input[type="text"]{ flex:1; }
+  .rev-explain{ min-height:50px; }
+  .add-q-btn{
+    width:100%; padding:10px; border-radius:8px; border:1.5px dashed var(--line);
+    background:transparent; color:var(--muted); font-size:13px; cursor:pointer; margin-bottom:16px;
+  }
+  .add-q-btn:hover{ border-color:var(--yellow-dim); color:var(--yellow); }
+
+  /* Quiz screen */
+  .qmeta{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+  .qnum{ color:var(--yellow); font-weight:800; font-size:13px; letter-spacing:0.08em; text-transform:uppercase; }
+  .qtext{ font-size:17px; line-height:1.5; font-weight:600; margin:0 0 18px; color:#fff; white-space:pre-wrap; }
+  .options{ display:flex; flex-direction:column; gap:10px; }
+  .opt{
+    display:flex; align-items:flex-start; gap:12px; width:100%; text-align:left;
+    background:var(--panel-2); border:1.5px solid var(--line); border-radius:10px;
+    padding:13px 14px; color:var(--text); font-size:14.5px; line-height:1.45;
+    cursor:pointer; transition:border-color .15s ease, background .15s ease, transform .1s ease; font-family:inherit;
+  }
+  .opt:hover:not(:disabled){ border-color:var(--yellow-dim); background:#221d0a; }
+  .opt:active:not(:disabled){ transform:scale(0.99); }
+  .opt-letter{
+    flex:0 0 auto; width:24px; height:24px; border-radius:50%; border:1.5px solid var(--muted);
+    display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:var(--muted);
+  }
+  .opt.correct{ border-color:var(--green); background:rgba(61,220,132,0.08); }
+  .opt.correct .opt-letter{ background:var(--green); border-color:var(--green); color:#062; }
+  .opt.correct .opt-text{ text-decoration:underline; text-decoration-color:var(--green); text-decoration-thickness:2px; text-underline-offset:3px; font-weight:700; color:#eaffea; }
+  .opt.wrong{ border-color:var(--red); background:rgba(255,77,77,0.08); }
+  .opt.wrong .opt-letter{ background:var(--red); border-color:var(--red); color:#fff; }
+  .opt:disabled{ cursor:default; }
+  .feedback{ margin-top:16px; padding:14px 16px; border-radius:10px; background:#000; border:1px solid var(--line); display:none; }
+  .feedback.show{ display:block; }
+  .feedback-head{ display:flex; align-items:center; gap:8px; font-weight:800; font-size:13px; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px; }
+  .feedback-head.correct{ color:var(--green); }
+  .feedback-head.wrong{ color:var(--red); }
+  .explain{ font-size:13.5px; line-height:1.55; color:#d8d8d8; white-space:pre-wrap; }
+  .next-btn{ margin-top:20px; width:100%; padding:14px; border-radius:10px; border:none; background:var(--yellow); color:#111; font-weight:800; font-size:14.5px; letter-spacing:0.03em; cursor:pointer; display:none; text-transform:uppercase; }
+  .next-btn.show{ display:block; }
+  .next-btn:active{ transform:scale(0.99); }
+
+  .results{ display:none; text-align:center; }
+  .results.show{ display:block; }
+  .score-ring{ width:170px;height:170px; margin:10px auto 20px; border-radius:50%; background:conic-gradient(var(--yellow) calc(var(--pct,0)*1%), var(--panel-2) 0); display:flex;align-items:center;justify-content:center; position:relative; }
+  .score-ring::before{ content:""; position:absolute; width:132px;height:132px; border-radius:50%; background:var(--black); }
+  .score-ring .score-num{ position:relative; font-size:34px; font-weight:900; color:var(--yellow); }
+  .score-sub{ color:var(--muted); font-size:13px; margin-bottom:24px; }
+  .verdict{ font-size:18px; font-weight:800; color:#fff; margin-bottom:6px; }
+  .review-list{ text-align:left; margin-top:24px; display:flex; flex-direction:column; gap:10px; }
+  .review-item{ background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:12px 14px; display:flex; gap:10px; align-items:center; font-size:13.5px; }
+  .review-item .mark{ flex:0 0 auto; width:22px;height:22px; border-radius:50%; display:flex;align-items:center;justify-content:center; font-size:12px;font-weight:800; }
+  .review-item.ok .mark{ background:var(--green); color:#062; }
+  .review-item.no .mark{ background:var(--red); color:#fff; }
+  .restart-btn{ margin-top:26px; width:100%; padding:14px; border-radius:10px; border:1.5px solid var(--yellow); background:transparent; color:var(--yellow); font-weight:800; font-size:14.5px; text-transform:uppercase; letter-spacing:0.03em; cursor:pointer; }
+
+  .screen{ display:none; }
+  .screen.active{ display:block; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="brand">
+    <h1 id="brandTitle">PDF Quiz Generator</h1>
+    <span id="progressLabel"></span>
+  </div>
+  <div class="progress-track" id="progressTrack" style="display:none;"><div class="progress-fill" id="progressFill"></div></div>
+
+  <!-- SCREEN 1: Upload -->
+  <div class="screen active" id="screenUpload">
+    <div class="card">
+      <label class="upload-zone" id="dropZone">
+        <input type="file" id="fileInput" accept="application/pdf">
+        <div class="upload-icon">📄</div>
+        <div class="upload-title">Marking scheme PDF එක මෙතන දාන්න</div>
+        <div class="upload-sub">Tap කරලා file එක තෝරන්න, හෝ drag & drop කරන්න.<br>Format: numbered questions (1. 2. 3...), options 1)-5), Answer: X), Explanation.</div>
+      </label>
+      <div class="filename-chip" id="filenameChip">📎 <span id="filenameText"></span></div>
+      <div class="status-line" id="statusLine" style="display:none;">
+        <div class="spinner"></div>
+        <span id="statusText">Processing...</span>
+      </div>
+      <div class="note-box">⚠️ PDF එකේ Sinhala text legacy (non-Unicode) font එකකින් තිබ්බොත් extraction එකේදී අකුරු jumble වෙන්න පුළුවන්. ඊළඟ screen එකේදී ඔයාට හැම ප්‍රශ්නයක්ම review කරලා edit කරන්න පුළුවන්.</div>
+      <button class="primary-btn" id="extractBtn" disabled>Extract & Parse Questions</button>
+    </div>
+  </div>
+
+  <!-- SCREEN 2: Review -->
+  <div class="screen" id="screenReview">
+    <div class="card">
+      <div class="review-head">
+        <h2 id="reviewCount">0 ප්‍රශ්න හමු වුණා</h2>
+        <p>හැම ප්‍රශ්නයක්ම check කරන්න. correct answer එක radio button එකෙන් තෝරන්න. වැරදි parse වුණු ප්‍රශ්න delete කරන්න හෝ edit කරන්න.</p>
+      </div>
+      <div id="reviewList"></div>
+      <button class="add-q-btn" id="addQBtn">+ අලුත් ප්‍රශ්නයක් manually add කරන්න</button>
+      <button class="primary-btn" id="startQuizBtn">Quiz එක පටන් ගන්න →</button>
+    </div>
+  </div>
+
+  <!-- SCREEN 3: Quiz -->
+  <div class="screen" id="screenQuiz">
+    <div class="card">
+      <div class="qmeta"><span class="qnum" id="qnum">ප්‍රශ්නය 1</span></div>
+      <p class="qtext" id="qtext"></p>
+      <div class="options" id="options"></div>
+      <div class="feedback" id="feedback">
+        <div class="feedback-head" id="feedbackHead"></div>
+        <div class="explain" id="explain"></div>
+      </div>
+      <button class="next-btn" id="nextBtn">ඊළඟ ප්‍රශ්නය →</button>
+    </div>
+  </div>
+
+  <!-- SCREEN 4: Results -->
+  <div class="screen" id="screenResults">
+    <div class="results show">
+      <div class="score-ring" id="scoreRing"><span class="score-num" id="scoreNum">0/0</span></div>
+      <div class="verdict" id="verdict"></div>
+      <div class="score-sub">නිවැරදි පිළිතුරු පහත underline කර ඇත.</div>
+      <div class="review-list" id="resultsReviewList"></div>
+      <button class="restart-btn" id="restartBtn">නැවත PDF එකක් උත්සාහ කරන්න</button>
+    </div>
+  </div>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const letters = ['A','B','C','D','E'];
+let parsedQuestions = [];
+let QUESTIONS = [];
+let current = 0, score = 0, answers = [];
+
+// ---------- Screen switching ----------
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById('progressTrack').style.display = (id === 'screenQuiz') ? 'block' : 'none';
+  document.getElementById('progressLabel').style.display = (id === 'screenQuiz') ? 'inline' : 'none';
+}
+
+// ---------- Upload handling ----------
+const fileInput = document.getElementById('fileInput');
+const dropZone = document.getElementById('dropZone');
+const extractBtn = document.getElementById('extractBtn');
+const filenameChip = document.getElementById('filenameChip');
+const filenameText = document.getElementById('filenameText');
+const statusLine = document.getElementById('statusLine');
+const statusText = document.getElementById('statusText');
+
+let selectedFile = null;
+
+fileInput.addEventListener('change', (e) => {
+  if(e.target.files.length){
+    selectedFile = e.target.files[0];
+    filenameText.textContent = selectedFile.name;
+    filenameChip.classList.add('show');
+    extractBtn.disabled = false;
+  }
+});
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('drag');
+  if(e.dataTransfer.files.length && e.dataTransfer.files[0].type === 'application/pdf'){
+    selectedFile = e.dataTransfer.files[0];
+    fileInput.files = e.dataTransfer.files;
+    filenameText.textContent = selectedFile.name;
+    filenameChip.classList.add('show');
+    extractBtn.disabled = false;
+  }
+});
+
+extractBtn.addEventListener('click', async () => {
+  if(!selectedFile) return;
+  extractBtn.disabled = true;
+  statusLine.style.display = 'flex';
+  statusText.textContent = 'PDF එක කියවනවා...';
+  try{
+    const arrayBuffer = await selectedFile.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+    let fullText = '';
+    for(let i = 1; i <= pdf.numPages; i++){
+      statusText.textContent = `Page ${i} / ${pdf.numPages} extract කරනවා...`;
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      let lines = {};
+      content.items.forEach(item => {
+        const y = Math.round(item.transform[5]);
+        if(!lines[y]) lines[y] = [];
+        lines[y].push(item.str);
+      });
+      const sortedY = Object.keys(lines).map(Number).sort((a,b) => b - a);
+      sortedY.forEach(y => { fullText += lines[y].join(' ') + '\n'; });
+      fullText += '\n';
+    }
+    statusText.textContent = 'ප්‍රශ්න වෙන් කරනවා...';
+    parsedQuestions = parseQuizText(fullText);
+    if(parsedQuestions.length === 0){
+      statusText.textContent = 'ප්‍රශ්න හමු වුණේ නෑ. PDF format එක බලලා manually add කරන්න.';
+      parsedQuestions = [];
+    }
+    renderReview();
+    showScreen('screenReview');
+  }catch(err){
+    console.error(err);
+    statusText.textContent = 'Error එකක් — PDF එක corrupt වෙන්න පුළුවන් හෝ password protect කරලා.';
+  }finally{
+    statusLine.style.display = 'none';
+    extractBtn.disabled = false;
+  }
+});
+
+// ---------- Parsing logic ----------
+function collapseWatermarks(text){
+  return text.replace(/\b((?:[A-Za-z][\w'.-]*\s+){1,6}[A-Za-z][\w'.-]*)\b(?:\s+\1\b)+/gi, '$1');
+}
+
+function parseQuizText(rawText){
+  let text = collapseWatermarks(rawText);
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+
+  const questions = [];
+  let cur = null;
+  let expectedNum = 1;
+
+  function pushCurrent(){
+    if(!cur) return;
+    const qText = cur.qLines.join(' ').replace(/\s+/g,' ').trim();
+    const options = cur.options.map(o => o ? o.join(' ').replace(/\s+/g,' ').trim() : '').filter(o => o.length > 0);
+    const explain = cur.explainLines.join(' ').replace(/\s+/g,' ').trim();
+    if(qText && options.length >= 2 && cur.answerIdx !== null && cur.answerIdx < options.length){
+      questions.push({
+        q: qText,
+        options: options,
+        correct: cur.answerIdx,
+        explain: explain || '(Explanation extract වුණේ නෑ — PDF එක check කරන්න)'
+      });
+    }
+  }
+
+  for(const line of lines){
+    const qMatch = line.match(/^(\d{1,2})[.)]\s+(.*)/);
+    if(qMatch && parseInt(qMatch[1],10) === expectedNum && qMatch[2].length > 3){
+      pushCurrent();
+      expectedNum++;
+      cur = {qLines:[qMatch[2]], options:[], answerIdx:null, explainLines:[], stage:'q', lastOptIdx:null};
+      continue;
+    }
+    if(!cur) continue;
+
+    const optMatch = line.match(/^([1-5])\)\s*(.*)/);
+    if(optMatch){
+      const idx = parseInt(optMatch[1],10) - 1;
+      cur.options[idx] = [optMatch[2]];
+      cur.stage = 'opt';
+      cur.lastOptIdx = idx;
+      continue;
+    }
+
+    const ansMatch = line.match(/^Answer\s*:?\s*([1-5])\)/i);
+    if(ansMatch){
+      cur.answerIdx = parseInt(ansMatch[1],10) - 1;
+      cur.stage = 'answer';
+      continue;
+    }
+
+    const explainMatch = line.match(/^Explanation\b/i);
+    if(explainMatch){
+      cur.stage = 'explain';
+      continue;
+    }
+
+    if(cur.stage === 'q'){
+      cur.qLines.push(line);
+    } else if(cur.stage === 'opt'){
+      if(cur.lastOptIdx !== null && cur.options[cur.lastOptIdx]){
+        cur.options[cur.lastOptIdx].push(line);
+      }
+    } else if(cur.stage === 'answer' || cur.stage === 'explain'){
+      cur.explainLines.push(line);
+      cur.stage = 'explain';
+    }
+  }
+  pushCurrent();
+  return questions;
+}
+
+// ---------- Review screen ----------
+const reviewList = document.getElementById('reviewList');
+const reviewCount = document.getElementById('reviewCount');
+
+function renderReview(){
+  reviewList.innerHTML = '';
+  reviewCount.textContent = `${parsedQuestions.length} ප්‍රශ්න හමු වුණා`;
+  parsedQuestions.forEach((item, qi) => renderReviewItem(item, qi));
+}
+
+function renderReviewItem(item, qi){
+  const div = document.createElement('div');
+  div.className = 'rev-item';
+  div.dataset.idx = qi;
+
+  const head = document.createElement('div');
+  head.className = 'rev-item-head';
+  head.innerHTML = `<span>ප්‍රශ්නය ${qi+1}</span>`;
+  const delBtn = document.createElement('button');
+  delBtn.className = 'del-btn';
+  delBtn.textContent = 'Delete';
+  delBtn.addEventListener('click', () => {
+    parsedQuestions.splice(qi, 1);
+    renderReview();
+  });
+  head.appendChild(delBtn);
+  div.appendChild(head);
+
+  const qArea = document.createElement('textarea');
+  qArea.className = 'rev-field';
+  qArea.rows = 2;
+  qArea.value = item.q;
+  qArea.addEventListener('input', () => item.q = qArea.value);
+  div.appendChild(qArea);
+
+  while(item.options.length < 2) item.options.push('');
+  item.options.forEach((opt, oi) => {
+    const row = document.createElement('div');
+    row.className = 'rev-opt-row';
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = `correct-${qi}`;
+    radio.checked = item.correct === oi;
+    radio.addEventListener('change', () => item.correct = oi);
+    const txt = document.createElement('input');
+    txt.type = 'text';
+    txt.className = 'rev-field';
+    txt.style.marginBottom = '0';
+    txt.value = opt;
+    txt.placeholder = `Option ${letters[oi]}`;
+    txt.addEventListener('input', () => item.options[oi] = txt.value);
+    row.appendChild(radio);
+    row.appendChild(txt);
+    div.appendChild(row);
+  });
+
+  const explainArea = document.createElement('textarea');
+  explainArea.className = 'rev-field rev-explain';
+  explainArea.rows = 3;
+  explainArea.placeholder = 'Explanation';
+  explainArea.value = item.explain;
+  explainArea.addEventListener('input', () => item.explain = explainArea.value);
+  div.appendChild(explainArea);
+
+  reviewList.appendChild(div);
+}
+
+document.getElementById('addQBtn').addEventListener('click', () => {
+  parsedQuestions.push({ q:'', options:['','','',''], correct:0, explain:'' });
+  renderReview();
+});
+
+document.getElementById('startQuizBtn').addEventListener('click', () => {
+  QUESTIONS = parsedQuestions
+    .filter(q => q.q.trim() && q.options.filter(o=>o.trim()).length >= 2)
+    .map(q => ({ q: q.q, options: q.options.filter(o => o.trim()), correct: q.correct, explain: q.explain }));
+  if(QUESTIONS.length === 0){
+    alert('අඩුම තරමින් එක ප්‍රශ්නයක්වත් වලංගු විදිහට තියෙන්න ඕන (question text + options 2ක්වත්).');
+    return;
+  }
+  current = 0; score = 0; answers = [];
+  document.getElementById('brandTitle').textContent = `ප්‍රශ්නාවලිය · ${QUESTIONS.length}`;
+  renderQuestion();
+  showScreen('screenQuiz');
+});
+
+// ---------- Quiz screen ----------
+const qnumEl = document.getElementById('qnum');
+const qtextEl = document.getElementById('qtext');
+const optionsEl = document.getElementById('options');
+const feedbackEl = document.getElementById('feedback');
+const feedbackHeadEl = document.getElementById('feedbackHead');
+const explainEl = document.getElementById('explain');
+const nextBtn = document.getElementById('nextBtn');
+const progressFill = document.getElementById('progressFill');
+const progressLabel = document.getElementById('progressLabel');
+
+function renderQuestion(){
+  const item = QUESTIONS[current];
+  qnumEl.textContent = `ප්‍රශ්නය ${current+1}`;
+  progressLabel.textContent = `ප්‍ර.${current+1} / ${QUESTIONS.length}`;
+  progressFill.style.width = `${(current/QUESTIONS.length)*100}%`;
+  qtextEl.textContent = item.q;
+
+  optionsEl.innerHTML = '';
+  item.options.forEach((optText, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'opt';
+    btn.innerHTML = `<span class="opt-letter">${letters[idx]}</span><span class="opt-text">${optText}</span>`;
+    btn.addEventListener('click', () => selectOption(idx));
+    optionsEl.appendChild(btn);
+  });
+
+  feedbackEl.classList.remove('show');
+  nextBtn.classList.remove('show');
+}
+
+function selectOption(idx){
+  const item = QUESTIONS[current];
+  const optionButtons = optionsEl.querySelectorAll('.opt');
+  optionButtons.forEach(b => b.disabled = true);
+
+  const isCorrect = idx === item.correct;
+  optionButtons.forEach((b, i) => {
+    if(i === item.correct) b.classList.add('correct');
+    if(i === idx && !isCorrect) b.classList.add('wrong');
+  });
+
+  if(isCorrect) score++;
+  answers.push({selected: idx, correct: item.correct, isCorrect});
+
+  feedbackHeadEl.textContent = isCorrect ? '✓ නිවැරදියි' : '✗ වැරදියි';
+  feedbackHeadEl.className = 'feedback-head ' + (isCorrect ? 'correct' : 'wrong');
+  explainEl.textContent = item.explain;
+  feedbackEl.classList.add('show');
+
+  nextBtn.textContent = current === QUESTIONS.length - 1 ? 'ප්‍රතිඵල බලන්න →' : 'ඊළඟ ප්‍රශ්නය →';
+  nextBtn.classList.add('show');
+}
+
+nextBtn.addEventListener('click', () => {
+  current++;
+  if(current < QUESTIONS.length){
+    renderQuestion();
+  } else {
+    showResults();
+  }
+});
+
+// ---------- Results screen ----------
+function showResults(){
+  showScreen('screenResults');
+  const pct = Math.round((score/QUESTIONS.length)*100);
+  document.getElementById('scoreRing').style.setProperty('--pct', pct);
+  document.getElementById('scoreNum').textContent = `${score}/${QUESTIONS.length}`;
+
+  let verdict;
+  if(pct === 100) verdict = "පරිපූර්ණයි! 🔥";
+  else if(pct >= 80) verdict = "සුපිරි වැඩක්!";
+  else if(pct >= 60) verdict = "හොඳ උත්සාහයක් — වැරදුනු ඒවා නැවත බලන්න.";
+  else if(pct >= 40) verdict = "හොඳින් එනවා — revise කරන්න.";
+  else verdict = "දැන් revision round එකක් ගන්න වෙලාව.";
+  document.getElementById('verdict').textContent = verdict;
+
+  const resultsReviewList = document.getElementById('resultsReviewList');
+  resultsReviewList.innerHTML = '';
+  QUESTIONS.forEach((item, i) => {
+    const a = answers[i];
+    const div = document.createElement('div');
+    div.className = 'review-item ' + (a.isCorrect ? 'ok' : 'no');
+    div.innerHTML = `<span class="mark">${a.isCorrect ? '✓' : '✗'}</span>
+      <span>ප්‍ර.${i+1}: <u>${letters[item.correct]}) ${item.options[item.correct]}</u>${a.isCorrect ? '' : ` — ඔයා තෝරුවේ ${letters[a.selected]}`}</span>`;
+    resultsReviewList.appendChild(div);
+  });
+}
+
+document.getElementById('restartBtn').addEventListener('click', () => {
+  selectedFile = null;
+  parsedQuestions = [];
+  QUESTIONS = [];
+  filenameChip.classList.remove('show');
+  extractBtn.disabled = true;
+  fileInput.value = '';
+  document.getElementById('brandTitle').textContent = 'PDF Quiz Generator';
+  showScreen('screenUpload');
+});
+</script>
+</body>
+</html>
