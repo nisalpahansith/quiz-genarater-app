@@ -2,8 +2,6 @@ import streamlit as st
 import PyPDF2
 import google.generativeai as genai
 import json
-import sys
-from streamlit.web import cli as stcli
 
 # --- APP SETUP & THEME ---
 st.set_page_config(page_title="AI PDF Quiz App", page_icon="🟡", layout="centered")
@@ -72,7 +70,8 @@ def parse_pdf_with_ai(file_bytes, api_key):
 
         # Configuring Gemini AI
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-pro')
+        # Using the recommended fast model
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         # AI Prompt
         prompt = f"""
@@ -107,9 +106,9 @@ def parse_pdf_with_ai(file_bytes, api_key):
 
 # --- APP LOGIC ---
 if api_key:
-    # PDF Upload Feature
-    st.subheader("📁 Upload your PDF Marking Scheme")
-    uploaded_file = st.file_uploader("", type="pdf")
+    # PDF Upload Feature (Fixed label warning)
+    st.write("---")
+    uploaded_file = st.file_uploader("📁 Upload your PDF Marking Scheme here", type="pdf")
 
     if uploaded_file is not None:
         with st.spinner('AI is generating your Sinhala quiz... Please wait! ⏳'):
@@ -155,5 +154,3 @@ if api_key:
                     st.write("---")
 else:
     st.warning("Please enter your Gemini API Key in the box above to use the app.")
-
-
